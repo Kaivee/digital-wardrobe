@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum WearStatus {
+  CLEAN
+  LAUNDRY
+  ARCHIVED
+}
+
+enum PatternType {
+  SOLID
+  STRIPED
+  CHECKED
+  FLORAL
+  GRAPHIC
+  TEXTURED
+  OTHER
+}
+
+enum OutfitOccasion {
+  CASUAL
+  SMART_CASUAL
+  WORK
+  FORMAL
+  DATE_NIGHT
+  ACTIVE
+}
+
+// ─── Accounts ────────────────────────────────────────────────────────────────
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  items     ClothingItem[]
+  outfits   Outfit[]
+  wearLogs  WearLog[]
+}
+
+// ─── Catalog ─────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  // Wears tolerated before the "Smart Laundry Trigger" flips an item to laundry.
+  wearLimit Int      @default(3)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  items ClothingItem[]
+}
+
+model ClothingItem {
+  id                String      @id @default(cuid())
+  userId            String
+  categoryId        String
+  name              String
+  description       String?
+  // Primary colour name, used for the colour-wheel compatibility matrix.
+  color             String
+  colorHex          String      @default("#C9C4BA")
+  pattern           PatternType @default(SOLID)
+  // 1 = laid back, 5 = formal.
+  formalityScore    Int         @default(3)
+  status            WearStatus  @default(CLEAN)
+  purchasePrice     Float       @default(0)
+  wearCount         Int         @default(0)
+  // Wears accumulated since the last wash, drives the laundry trigger.
+  wearCountSinceWash Int        @default(0)
+  imageUrl          String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  outfitItems OutfitItem[]
+  wearLogs   WearLog[]
+
+  @@index([userId, status])
+  @@index([userId, categoryId])
+  @@index([status])
+}
+
+// ─── Outfits ──────────────────────────────────────────────────────────────────
+
+model Outfit {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  occasion  OutfitOccasion  @default(CASUAL)
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  OutfitItem[]
+  wearLogs WearLog[]
+
+  @@index([userId])
+}
+
+model OutfitItem {
+  id       String @id @default(cuid())
+  outfitId String
+  itemId   String
+  // Order within the outfit (1 = base, 2 = layering, 3 = footwear, ...).
+  position Int    @default(1)
+
+  outfit Outfit        @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  item   ClothingItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([outfitId, itemId])
+}
+
+// ─── Wear analytics ───────────────────────────────────────────────────────────
+
+model WearLog {
+  id         String    @id @default(cuid())
+  userId     String
+  itemId     String
+  outfitId   String?
+  dateWorn   DateTime  @db.Date
+  weatherTemp Int?
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item   ClothingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  outfit Outfit?     @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+
+  @@index([itemId, dateWorn])
+  @@index([userId, dateWorn])
+}
+
+// ─── Colour wheel compatibility matrix ────────────────────────────────────────
+// Stores normalised (sorted) colour pairs with a 0–10 harmony score.
+
+model ColorCompatibility {
+  id     String @id @default(cuid())
+  color1 String
+  color2 String
+  score  Int    @default(5)
+
+  @@unique([color1, color2])
+  @@index([color2])
+}
