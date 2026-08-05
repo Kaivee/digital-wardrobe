@@ -26,6 +26,7 @@ const globalForPrisma = globalThis as unknown as {
 function parseMysqlUrl(url: string) {
   // Parse mysql://user:password@host:port/database
   const parsed = new URL(url)
+  const sslParam = parsed.searchParams.get("ssl")
   return {
     host: parsed.hostname,
     port: parsed.port ? parseInt(parsed.port, 10) : 3306,
@@ -33,6 +34,7 @@ function parseMysqlUrl(url: string) {
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     database: parsed.pathname.replace(/^\//, ""),
     connectionLimit: 5,
+    ssl: sslParam === "true" || sslParam === "1",
   }
 }
 
