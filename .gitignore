@@ -52,3 +52,6 @@ next-env.d.ts
 .windsurf/
 .opencode/
 skills-lock.json
+
+.vercel
+.env*
