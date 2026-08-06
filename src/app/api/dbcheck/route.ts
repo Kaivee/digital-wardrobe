@@ -1,5 +1,27 @@
 import { NextResponse } from "next/server"
-import mariadb from "mariadb"
+import { createPool, type Pool } from "mariadb"
+
+function serializeError(e: unknown) {
+  const err = e as Record<string, unknown>
+  const rawCause = err.cause
+  const cause =
+    rawCause && typeof rawCause === "object"
+      ? Object.fromEntries(
+          Object.entries(rawCause as Record<string, unknown>).filter(
+            ([k]) => !["stack"].includes(k)
+          )
+        )
+      : rawCause !== undefined
+        ? String(rawCause)
+        : null
+  return {
+    name: err.name,
+    code: err.code,
+    errno: err.errno,
+    message: err.message,
+    cause,
+  }
+}
 
 export async function GET() {
   const url = process.env.DATABASE_URL
@@ -16,32 +38,16 @@ export async function GET() {
     connectionLimit: 1,
   }
 
-  let conn: mariadb.PoolConnection | undefined
+  let pool: Pool | undefined
   try {
-    const pool = mariadb.createPool(config)
-    conn = await pool.getConnection()
+    pool = createPool(config)
+    const conn = await pool.getConnection()
     const res = await conn.query("SELECT 1 AS ok, VERSION() AS version")
     await conn.end()
     await pool.end()
     return NextResponse.json({ ok: true, result: res[0] })
   } catch (e) {
-    const err = e as Record<string, unknown> & { cause?: unknown }
-    const cause = err.cause
-      ? typeof cause === "object" && cause !== null
-        ? Object.fromEntries(
-            Object.entries(cause as Record<string, unknown>).filter(
-              ([k]) => !["stack"].includes(k)
-            )
-          )
-        : String(cause)
-      : null
-    return NextResponse.json({
-      ok: false,
-      name: err.name,
-      code: err.code,
-      errno: err.errno,
-      message: err.message,
-      cause,
-    })
+    if (pool) await pool.end().catch(() => undefined)
+    return NextResponse.json({ ok: false, ...serializeError(e) })
   }
 }
