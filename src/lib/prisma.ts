@@ -33,7 +33,9 @@ function parseMysqlUrl(url: string) {
     user: parsed.username ? decodeURIComponent(parsed.username) : undefined,
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     database: parsed.pathname.replace(/^\//, ""),
-    connectionLimit: 5,
+    // Keep pool size at 1 per serverless function instance to avoid
+    // exhausting TiDB Cloud's connection limit across concurrent invocations.
+    connectionLimit: 1,
     connectTimeout: 30000,
     acquireTimeout: 60000,
     ssl: sslParam === "true" || sslParam === "1",

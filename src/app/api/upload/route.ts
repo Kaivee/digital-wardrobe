@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server"
-import { randomUUID } from "node:crypto"
-import { mkdir, writeFile } from "node:fs/promises"
-import path from "node:path"
 import { getCurrentUser } from "@/lib/user"
 
 export const runtime = "nodejs"
 
 const MAX_SIZE = 8 * 1024 * 1024
 
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/avif": "avif",
-}
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+])
 
 export async function POST(request: Request) {
   await getCurrentUser()
@@ -26,8 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file uploaded." }, { status: 400 })
   }
 
-  const extension = EXTENSIONS[file.type]
-  if (!extension) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json(
       { error: "Only JPG, PNG, WEBP, GIF and AVIF images are allowed." },
       { status: 400 }
@@ -42,10 +38,8 @@ export async function POST(request: Request) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer())
-  const filename = `${randomUUID()}.${extension}`
-  const directory = path.join(process.cwd(), "public", "uploads")
-  await mkdir(directory, { recursive: true })
-  await writeFile(path.join(directory, filename), bytes)
+  const base64 = bytes.toString("base64")
+  const dataUrl = `data:${file.type};base64,${base64}`
 
-  return NextResponse.json({ url: `/uploads/${filename}` })
+  return NextResponse.json({ url: dataUrl })
 }
