@@ -167,6 +167,8 @@ export async function recommendOutfit({
     const freshnessTotal =
       top.wearCountSinceWash + bottom.wearCountSinceWash + footwear.wearCountSinceWash
 
+    const colorTotal = Number(row.color_total)
+
     const formalityBonus = Math.max(
       0,
       6 - Math.abs(targetCenter * 3 - formalityTotal) * 0.5
@@ -182,8 +184,8 @@ export async function recommendOutfit({
       footwear,
       outerwear,
       accessories: accessories.slice(0, 2),
-      score: Math.round((row.color_total + formalityBonus + freshnessBonus + preferBonus) * 100) / 100,
-      colorTotal: row.color_total,
+      score: Math.round((colorTotal + formalityBonus + freshnessBonus + preferBonus) * 100) / 100,
+      colorTotal,
       formalityTotal,
       freshnessTotal,
     }
