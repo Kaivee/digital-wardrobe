@@ -34,6 +34,8 @@ function parseMysqlUrl(url: string) {
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     database: parsed.pathname.replace(/^\//, ""),
     connectionLimit: 5,
+    connectTimeout: 30000,
+    acquireTimeout: 60000,
     ssl: sslParam === "true" || sslParam === "1",
   }
 }
