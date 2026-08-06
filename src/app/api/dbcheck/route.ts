@@ -47,7 +47,11 @@ export async function GET() {
     const res = await conn.query("SELECT 1 AS ok, VERSION() AS version")
     await conn.end()
     await pool.end()
-    return NextResponse.json({ ok: true, result: res[0] })
+    return NextResponse.json({
+      ok: true,
+      result: String(res[0].ok),
+      version: String(res[0].version),
+    })
   } catch (e) {
     if (pool) await pool.end().catch(() => undefined)
     return NextResponse.json({ ok: false, ...serializeError(e) })
