@@ -36,6 +36,8 @@ export async function GET() {
     database: parsed.pathname.replace(/^\//, ""),
     ssl: parsed.searchParams.get("ssl") === "true",
     connectionLimit: 1,
+    connectTimeout: 20000,
+    socketTimeout: 20000,
   }
 
   let pool: Pool | undefined
